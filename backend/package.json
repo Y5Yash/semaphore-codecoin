@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@reclaimprotocol/reclaim-sdk": "^4.7.1",
+    "@semaphore-protocol/data": "^3.10.1",
+    "@semaphore-protocol/group": "^3.10.1",
+    "@semaphore-protocol/identity": "^3.10.1",
+    "@semaphore-protocol/proof": "^3.10.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.7.1",
+    "express": "^4.18.2",
+    "mongodb": "^5.7.0"
+  }
+}
