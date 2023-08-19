@@ -22,9 +22,11 @@ const reclaim = new reclaimprotocol.Reclaim();
 
 dotenv.config();
 const privateKey = process.env.PRIVATE_KEY || '0x0';
+const publicAddress = process.env.PUBLIC_ADDRESS;
 const dbUsername = process.env.DB_USER;
 const dbPassword = process.env.DB_PWD;
 const callbackBase = process.env.CALLBACK_BASE;
+const groupCreated = process.env.IS_GROUP_CREATED;
 
 const optGoerliProvider = 'https://goerli.optimism.io';
 const provider = new ethers.JsonRpcProvider(optGoerliProvider);
@@ -33,7 +35,7 @@ const semaphoreAddress = "0x3889927F0B5Eb1a02C6E2C20b39a1Bd4EAd76131";
 const semaphoreContract = new ethers.Contract(semaphoreAddress, semaphoreABI, ownerAccount);
 const groupNo = 100;
 const signal = 0;
-const codecoinAddress = "0x66e243e2a4119E0fA89f0A394183D4716f4e982C";
+const codecoinAddress = "0x059CF844d6b8E00590C3c28Cf37f6fe0123BFb97";
 const codecoinContract = new ethers.Contract(codecoinAddress, codecoinABI, ownerAccount);
 
 // Connect to MongoDB Atlas. Use other DB if needed.
@@ -56,13 +58,11 @@ app.get("/request-proofs", async (req, res) => {
         const db = client.db();
         const callbackCollection = db.collection('codecoin-reclaim');
         const request = reclaim.requestProofs({
-            // contextMessage: "CodeCoin",
-            // contextAddress: userAddr as string,
             title: "CodeCoin",
             baseCallbackUrl: callbackUrl,
             requestedProofs: [
                 new reclaim.CustomProvider({
-                    provider: 'codeforces-rating',
+                    provider: 'google-login',
                     payload: {}
                 }),
             ],
@@ -161,9 +161,9 @@ app.get("/generate-identity/", async (req, res) => {
         const identity = new Identity();
         console.log(identity.toString());
         res.status(200).json({
-            trapdoor: identity.trapdoor,
-            commitment: identity.commitment,
-            nullifier: identity.nullifier,
+            trapdoor: identity.trapdoor.toString(),
+            commitment: identity.commitment.toString(),
+            nullifier: identity.nullifier.toString(),
             identityString: identity.toString()
         });
     }
@@ -181,7 +181,7 @@ app.get("/commit/", async (req, res) => {
     // check identity.toString was correct - appropriate trapdoor and nullifier.
     try {
         const {identityString: identityString} = req.query;
-        const identity = new Identity(identityString);
+        const identity = new Identity(identityString as string);
     }
     catch (error) {
         console.log("[Commit -- Incorrect Identity String] -- Error: ", error);
@@ -192,7 +192,7 @@ app.get("/commit/", async (req, res) => {
     // check if the proof for the callback Id is verified.
     let parameters = '';
     try {
-        const {id: callbackId} = req.query;
+        const {id: callbackId, nonce} = req.query;
         const db = client.db();
         const callbackCollection = db.collection('codecoin-reclaim');
         const entry = await callbackCollection.findOne({callbackId: callbackId});
@@ -205,9 +205,9 @@ app.get("/commit/", async (req, res) => {
             console.log(callbackId, " proof not received");
             throw new Error(`Proof from ${callbackId} not received from Reclaim Wallet.`);
         }
-        parameters = entry.proofs[0].parameters;
+        parameters = entry.proofs[0].parameters + nonce;
         console.log(entry.proofs);
-        res.status(200).json(entry.proofs);
+        // res.status(200).json(entry.proofs);
     }
     catch (error) {
         console.log("[Commit - Proof not submitted yet] -- Error: ", error);
@@ -228,11 +228,11 @@ app.get("/commit/", async (req, res) => {
         console.log("[Commit -- Parameter already used.] -- Error: ", error);
         res.status(500).json({msg: "The parameter is already used to commit to the group once."});
         return;
-    }
+    };
 
     // Submit transaction and update database.
     const {identityString: identityString} = req.query;
-    const identity = new Identity(identityString);
+    const identity = new Identity(identityString as string);
     try {
         const tx = await semaphoreContract.addMember(groupNo, identity.commitment);
         console.log("-- the Tx is: ", tx);
@@ -241,13 +241,12 @@ app.get("/commit/", async (req, res) => {
         const db = client.db();
         const semaphoreCollection = db.collection('codecoin-semaphore');
         await semaphoreCollection.insertOne({params: parameters});
+        res.status(200).json({msg: "Successfully committed to the group"})
     }
     catch (error) {
         console.log("[Commit -- Transaction addMember Fail] -- Error: ", error);
         res.status(500).json({msg: "Transaction to add member to the group failed."});
-        return;
     }
-    res.status(200).json({msg: "Successfully committed to the group"})
     return;
 });
 // ------------------------------------
@@ -257,11 +256,11 @@ app.get("/commit/", async (req, res) => {
 app.get("/airdrop/", async (req, res) => {
     try {
         const {identityString, externalNullifier, userAddr} = req.query;
-        const identity = new Identity(identityString);
+        const identity = new Identity(identityString as string);
         const semaphoreEthers = new SemaphoreEthers("optimism-goerli", {address: semaphoreAddress});
         const members = await semaphoreEthers.getGroupMembers(groupNo.toString());
         const group = new Group(groupNo, 16, members);
-        const fullProof = await generateProof(identity, group, externalNullifier, signal);
+        const fullProof = await generateProof(identity, group, externalNullifier as string, signal, { zkeyFilePath: "./semaphore.zkey", wasmFilePath: "./semaphore.wasm" });
         const tx1 = await semaphoreContract.verifyProof(group.id, fullProof.merkleTreeRoot, fullProof.signal, fullProof.nullifierHash, fullProof.externalNullifier, fullProof.proof);
         console.log("-- tx verifyProof: ", tx1);
         const receipt1 = await tx1.wait();
@@ -270,7 +269,7 @@ app.get("/airdrop/", async (req, res) => {
         console.log("-- tx Airdrop: ", tx2);
         const receipt2 = await tx2.wait();
         console.log("-- receipt Airdrop: ", receipt2);
-        res.status(200).json({msg: "Successfully submitted and verified the proof. Airdropped 100 COCO."});
+        res.status(200).json(receipt2);
     }
     catch (error) {
         console.log("[Airdrop -- airdrop failed. Retry later] -- Error: ", error);
@@ -285,6 +284,11 @@ app.listen(port, async () => {
     try {
         await client.connect();
         console.log('Connected to mongoDB.');
+        if (groupCreated.includes("false")) {
+            const tx = await semaphoreContract.createGroup(groupNo, 16, publicAddress);
+            const receipt = await tx.wait();
+            console.log(receipt);
+        }
     } catch (error) {
         console.error('Exiting. Failed to connect to mongoDB with error:', error, );
         process.exit(1);
