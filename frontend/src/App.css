@@ -1,0 +1,212 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  opacity: 1;
+  /* background-color: rgba(15, 0, 40, 0.99); */
+  background-color: black;
+  color: white;
+  margin: 0;
+  padding: 0;
+  /* font-family: Arial, sans-serif; */
+  font-family: 'Saira Condensed', sans-serif;
+  /* font-family: 'Smythe', cursive; */
+  /* font-family: Manrope; */
+  height: 100vh;
+}
+
+body::before {    
+  content: "";
+  /* background-image: url('./assets/wallpaper.jpg'); */
+  background-size: cover;
+  background-position: center;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+  opacity: 0.3;
+  position: absolute;
+  z-index: -1;
+  /* background-color: rgba(3,3,64,0.1); */
+}
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+.App {
+  max-width: 1000px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.center-body {
+  padding: 5 em;
+  display: flex;
+}
+
+.center-body>div {
+  flex: 1;
+  align-items: center;
+  margin-top: 15vh;
+  height:50vh;
+}
+
+.rightside {
+  background-image: url("./dogeCode.png");
+  background-size:contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment:inherit;
+}
+
+.rightside2 {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
+.leftside-container {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
+h1 {
+  font-size: 4em;
+  margin-bottom: 10px;
+  color: white;
+  text-decoration: none;
+  font-family: 'Handjet', cursive;
+}
+
+h2 {
+  font-size: 18px;
+  color: #606dfe;
+  text-decoration: none;
+}
+
+.navbar-class {
+  display: flex;
+  justify-content: space-between;
+  border-bottom:thin;
+  border-color: white;
+}
+
+.navbar-class>div {
+  padding: 0.5em;
+}
+
+.navbar-class>div>* {
+  padding: 0.5em;
+}
+
+.navbar-coins {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-wallet {
+  display: flex;
+}
+
+.QR-black {
+  background-color: rgb(15, 0, 40, 0.0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.QR-white {
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  /* z-index: -1; */
+  /* visibility: hidden; */
+  /* content: "yoyo"; */
+}
+
+.error-txn {
+  /* font-size: smaller; */
+  color: red;
+}
+
+.QR-resize {
+  width:auto;
+  height: auto;
+}
+
+@media screen and (max-height: 400px) {
+  .QR-resize {
+    width: 50vh;
+    height: 50vh;
+  }
+  .QR-white {
+    padding: 10px;
+  }
+}
+
+@media screen and (max-width: 750px) {
+  .center-body {
+    display: block;
+  }
+  .center-body>div {
+    margin-top: 5vh;
+    height: 35vh;
+  }
+  .QR-resize {
+    width: 20vh;
+    height: 20vh;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .navbar-wallet {
+    /* visibility: hidden; */
+    font-size: x-small;
+  }
+  .large-text {
+    font-size: smaller;
+  }
+}
+
+
+button {
+  padding: 0.5em;
+  margin: 0.5em;
+}
+
+@keyframes spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.loading-spinner {
+  padding: 0.5em;
+  width: 1em;
+  height: 1em;
+  border: 2px solid #f3f3f3; /* Light grey */
+  border-top: 2px solid #383636; /* Black */
+  border-radius: 50%;
+  animation: spinner 1.5s linear infinite;
+}
+
+.button-container {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
