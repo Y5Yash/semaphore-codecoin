@@ -223,7 +223,7 @@ const App: React.FC = () => {
           }
         </div>
       }
-      {isProofReceived && !isAirDropped && isIdentityCommitted && <form onSubmit={initiateAirDrop}>
+      {isProofReceived && !isAirDropped && isIdentityCommitted && <form onSubmit={initiateAirDrop} className='button-container'>
         <label>
           Your Wallet Address:
           <input
