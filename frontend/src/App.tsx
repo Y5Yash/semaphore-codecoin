@@ -28,7 +28,8 @@ const App: React.FC = () => {
   const [isLoadingCommit, setIsLoadingCommit] = useState(false);
   const [isLoadingAirdrop, setIsLoadingAirdrop] = useState(false);
   // Update the backendBase according to where it is hosted.
-  const backendBase = 'https://codecoin-backend.onrender.com';
+  // const backendBase = 'https://codecoin-backend.onrender.com';
+  const backendBase = 'http://192.168.0.130:3000';
   const backendTemplateUrl = `${backendBase}/request-proofs`;
   const backendProofUrl = `${backendBase}/get-proofs`;
   const backendIdentity = `${backendBase}/generate-identity`;
@@ -223,7 +224,7 @@ const App: React.FC = () => {
           }
         </div>
       }
-      {isProofReceived && !isAirDropped && isIdentityCommitted && <form onSubmit={initiateAirDrop} className='button-container'>
+      {isProofReceived && !isAirDropped && isIdentityCommitted && <form onSubmit={initiateAirDrop} >
         <label>
           Your Wallet Address:
           <input
@@ -232,8 +233,10 @@ const App: React.FC = () => {
             required
           />
         </label><br/>
+        <div className='button-container'>
         <button type='submit'>Airdrop at this Wallet Address</button>
         {isLoadingAirdrop && <div className='loading-spinner'/>}
+        </div>
         {gotErrorTxn && <div className='error-txn'>Error in Opt-Goerli RPC. Update backend.</div>}
       </form>
       }
