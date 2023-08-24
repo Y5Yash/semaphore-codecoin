@@ -32,17 +32,17 @@ const optGoerliProvider = 'https://goerli.optimism.io';
 const provider = new ethers.JsonRpcProvider(optGoerliProvider);
 const ownerAccount = new ethers.Wallet(privateKey, provider);
 const semaphoreAddress = "0x3889927F0B5Eb1a02C6E2C20b39a1Bd4EAd76131";
-const semaphoreContract = new ethers.Contract(semaphoreAddress, semaphoreABI, ownerAccount);
-const groupNo = 100;
+// const semaphoreContract = new ethers.Contract(semaphoreAddress, semaphoreABI, ownerAccount);
+const merkleTreeDepth = 16;
+const groupNo = 102;
 const signal = 0;
-const codecoinAddress = "0x059CF844d6b8E00590C3c28Cf37f6fe0123BFb97";
+const codecoinAddress = "0x281A467f8DF148dDdC8d03573d0808b00c5D3190";
 const codecoinContract = new ethers.Contract(codecoinAddress, codecoinABI, ownerAccount);
 
 // Connect to MongoDB Atlas. Use other DB if needed.
 const mongoUri = `mongodb+srv://${dbUsername}:${dbPassword}@cluster0.elv9kur.mongodb.net/`;
 const client = new MongoClient(mongoUri, { monitorCommands: true });
 
-// const callbackBase = `http://192.168.0.0:${port}`; // Modify this to get from environment
 const callbackUrl = `${callbackBase}/callback`
 
 app.use((req, res, next) => {
@@ -54,7 +54,6 @@ app.use((req, res, next) => {
 // endpoint for the frontend to fetch the reclaim template using sdk.
 app.get("/request-proofs", async (req, res) => {
     try {
-        // const {addr: userAddr} = req.query;
         const db = client.db();
         const callbackCollection = db.collection('codecoin-reclaim');
         const request = reclaim.requestProofs({
@@ -216,32 +215,30 @@ app.get("/commit/", async (req, res) => {
         return;
     }
 
-    // check if the parameter is already used to commit.
-    try {
-        const db = client.db();
-        const semaphoreCollection = db.collection('codecoin-semaphore');
-        const entry = await semaphoreCollection.findOne({params: parameters});
-        if (entry) {
-            throw new Error(`Parameter "${parameters}" already used to commit an identity.`);
-        };
-    }
-    catch (error) {
-        console.log("[Commit -- Parameter already used.] -- Error: ", error);
-        res.status(500).json({msg: "The parameter is already used to commit to the group once."});
-        return;
-    };
+    // // check if the parameter is already used to commit.
+    // try {
+    //     const db = client.db();
+    //     const semaphoreCollection = db.collection('codecoin-semaphore');
+    //     const entry = await semaphoreCollection.findOne({params: parameters});
+    //     if (entry) {
+    //         throw new Error(`Parameter "${parameters}" already used to commit an identity.`);
+    //     };
+    // }
+    // catch (error) {
+    //     console.log("[Commit -- Parameter already used.] -- Error: ", error);
+    //     res.status(500).json({msg: "The parameter is already used to commit to the group once."});
+    //     return;
+    // };
 
-    // Submit transaction and update database.
+    // Submit transaction and update database. Doesn't succeed if the parameter is already registered
     const {identityString: identityString} = req.query;
     const identity = new Identity(identityString as string);
+    const paramHash = ethers.keccak256(ethers.id(parameters));
     try {
-        const tx = await semaphoreContract.addMember(groupNo, identity.commitment);
+        const tx = await codecoinContract.registerMember(paramHash, identity.commitment);
         console.log("-- the Tx is: ", tx);
         const receipt = await tx.wait();
         console.log("-- the receipt is: ", receipt);
-        const db = client.db();
-        const semaphoreCollection = db.collection('codecoin-semaphore');
-        await semaphoreCollection.insertOne({params: parameters});
         res.status(200).json({msg: "Successfully committed to the group"})
     }
     catch (error) {
@@ -260,13 +257,13 @@ app.get("/airdrop/", async (req, res) => {
         const identity = new Identity(identityString as string);
         const semaphoreEthers = new SemaphoreEthers("optimism-goerli", {address: semaphoreAddress});
         const members = await semaphoreEthers.getGroupMembers(groupNo.toString());
-        const group = new Group(groupNo, 16, members);
+        const group = new Group(groupNo, merkleTreeDepth, members);
         const fullProof = await generateProof(identity, group, externalNullifier as string, signal, { zkeyFilePath: "./semaphore.zkey", wasmFilePath: "./semaphore.wasm" });
-        const tx1 = await semaphoreContract.verifyProof(group.id, fullProof.merkleTreeRoot, fullProof.signal, fullProof.nullifierHash, fullProof.externalNullifier, fullProof.proof);
-        console.log("-- tx verifyProof: ", tx1);
-        const receipt1 = await tx1.wait();
-        console.log("-- receipt verifyProof: ", receipt1);
-        const tx2 = await codecoinContract.airDropTo(userAddr);
+        // const tx1 = await semaphoreContract.verifyProof(group.id, fullProof.merkleTreeRoot, fullProof.signal, fullProof.nullifierHash, fullProof.externalNullifier, fullProof.proof);
+        // console.log("-- tx verifyProof: ", tx1);
+        // const receipt1 = await tx1.wait();
+        // console.log("-- receipt verifyProof: ", receipt1);
+        const tx2 = await codecoinContract.airDropTo(userAddr, fullProof.merkleTreeRoot, fullProof.signal, fullProof.nullifierHash, fullProof.externalNullifier, fullProof.proof);
         console.log("-- tx Airdrop: ", tx2);
         const receipt2 = await tx2.wait();
         console.log("-- receipt Airdrop: ", receipt2);
@@ -285,11 +282,11 @@ app.listen(port, async () => {
     try {
         await client.connect();
         console.log('Connected to mongoDB.');
-        if (groupCreated.includes("false")) {
-            const tx = await semaphoreContract.createGroup(groupNo, 16, publicAddress);
-            const receipt = await tx.wait();
-            console.log(receipt);
-        }
+        // if (groupCreated.includes("false")) {
+        //     const tx = await semaphoreContract.createGroup(groupNo, merkleTreeDepth, publicAddress);
+        //     const receipt = await tx.wait();
+        //     console.log(receipt);
+        // }
     } catch (error) {
         console.error('Exiting. Failed to connect to mongoDB with error:', error, );
         process.exit(1);
