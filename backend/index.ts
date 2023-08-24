@@ -90,17 +90,18 @@ app.use(express.text({ type: "*/*" }));
 app.post("/callback", async (req, res) => {
     try {
         const {callbackId: callbackId} = req.query;
-        console.log("[Callback -- TEMP] -- CallbackId from RW: ", callbackId);
-        console.log("[Callback -- TEMP] -- Body from RW: ", req.body);
+        // console.log("[Callback -- TEMP] -- CallbackId from RW: ", callbackId);
+        // console.log("[Callback -- TEMP] -- Body from RW: ", req.body);
         const { proofs } = JSON.parse(decodeURIComponent(req.body));
         console.log("[Callback -- TEMP] -- Proofs: ", proofs);
 
-        const onChainClaimIds = reclaim.getClaimIdsFromProofs(proofs); // Remove these later
-        console.log("[Callback -- TEMP] -- Claim Ids: ", onChainClaimIds);
+        // const onChainClaimIds = reclaim.getClaimIdsFromProofs(proofs); // Remove these later
+        // console.log("[Callback -- TEMP] -- Claim Ids: ", onChainClaimIds);
+
+        res.json({msg: "Callback received at backend. The backend will verify the proof now and the 'Fetch proof' button will then work as intended once verification is done."});
+
         const isProofCorrect = await reclaim.verifyCorrectnessOfProofs(callbackId as string, proofs);
         console.log("[Callback -- TEMP] -- is Proof Correct? ", isProofCorrect);
-
-        res.json({msg: "Callback received at backend. Check your application."});
 
         const db = client.db();
         const callbackCollection = db.collection('codecoin-reclaim');
