@@ -28,7 +28,7 @@ const App: React.FC = () => {
   const [isLoadingCommit, setIsLoadingCommit] = useState(false);
   const [isLoadingAirdrop, setIsLoadingAirdrop] = useState(false);
   // Update the backendBase according to where it is hosted.
-  const backendBase = 'https://codecoin-backend.reclaimprotocol.org/';
+  const backendBase = 'https://codecoin-backend.reclaimprotocol.org';
   const backendTemplateUrl = `${backendBase}/request-proofs`;
   const backendProofUrl = `${backendBase}/get-proofs`;
   const backendIdentity = `${backendBase}/generate-identity`;
