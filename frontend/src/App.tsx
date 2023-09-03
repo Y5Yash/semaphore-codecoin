@@ -8,7 +8,7 @@ import QRCode from 'react-qr-code';
 // const tokenContractAddress = process.env.TOKEN_CONTRACT_ADDRESS;
 // const backendBase = process.env.BACKEND_BASE;
 const tokenContractAddress = "0x281A467f8DF148dDdC8d03573d0808b00c5D3190";
-const backendBase = "http://192.168.29.208:3000"
+const backendBase = "https://codecoin-backend.reclaimprotocol.org";
 console.log('The backend base is: ', backendBase);
 console.log('The token contract address is: ', tokenContractAddress);
 const backendTemplateUrl = `${backendBase}/request-proofs`;
