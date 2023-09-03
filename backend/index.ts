@@ -4,7 +4,6 @@ import { reclaimprotocol } from "@reclaimprotocol/reclaim-sdk";
 import dotenv from 'dotenv';
 import { MongoClient } from 'mongodb';
 
-import semaphoreABI from './semaphore-abi.json';
 import codecoinABI from './codecoin-abi.json';
 import { ethers } from "ethers";
 import { Identity } from "@semaphore-protocol/identity";
@@ -26,17 +25,15 @@ const publicAddress = process.env.PUBLIC_ADDRESS;
 const dbUsername = process.env.DB_USER;
 const dbPassword = process.env.DB_PWD;
 const callbackBase = process.env.CALLBACK_BASE;
-const groupCreated = process.env.IS_GROUP_CREATED;
+const codecoinAddress = process.env.CODECOIN_ADDRESS;
 
 const optGoerliProvider = 'https://goerli.optimism.io';
 const provider = new ethers.JsonRpcProvider(optGoerliProvider);
 const ownerAccount = new ethers.Wallet(privateKey, provider);
-const semaphoreAddress = "0x3889927F0B5Eb1a02C6E2C20b39a1Bd4EAd76131";
-// const semaphoreContract = new ethers.Contract(semaphoreAddress, semaphoreABI, ownerAccount);
+const semaphoreAddress = "0x3889927F0B5Eb1a02C6E2C20b39a1Bd4EAd76131"; // Opt goerli
 const merkleTreeDepth = 16;
 const groupNo = 102;
 const signal = 0;
-const codecoinAddress = "0x281A467f8DF148dDdC8d03573d0808b00c5D3190";
 const codecoinContract = new ethers.Contract(codecoinAddress, codecoinABI, ownerAccount);
 
 // Connect to MongoDB Atlas. Use other DB if needed.
@@ -54,11 +51,13 @@ app.use((req, res, next) => {
 // endpoint for the frontend to fetch the reclaim template using sdk.
 app.get("/request-proofs", async (req, res) => {
     try {
+        const {userAddr: userAddr} = req.query;
         const db = client.db();
         const callbackCollection = db.collection('codecoin-reclaim');
         const request = reclaim.requestProofs({
-            title: "CodeCoin",
+            title: "G-Coin",
             baseCallbackUrl: callbackUrl,
+            contextAddress: userAddr as string,
             requestedProofs: [
                 new reclaim.CustomProvider({
                     provider: 'google-login',
@@ -97,7 +96,7 @@ app.post("/callback", async (req, res) => {
         // const onChainClaimIds = reclaim.getClaimIdsFromProofs(proofs); // Remove these later
         // console.log("[Callback -- TEMP] -- Claim Ids: ", onChainClaimIds);
 
-        res.json({msg: "Callback received at backend. The backend will verify the proof now and the 'Fetch proof' button will then work as intended once verification is done."});
+        res.json({msg: "Callback received at backend. The backend will verify the proof now.            You can now close this window and go back to the G-coin dApp."});
 
         const isProofCorrect = await reclaim.verifyCorrectnessOfProofs(callbackId as string, proofs);
         console.log("[Callback -- TEMP] -- is Proof Correct? ", isProofCorrect);
@@ -215,21 +214,6 @@ app.get("/commit/", async (req, res) => {
         return;
     }
 
-    // // check if the parameter is already used to commit.
-    // try {
-    //     const db = client.db();
-    //     const semaphoreCollection = db.collection('codecoin-semaphore');
-    //     const entry = await semaphoreCollection.findOne({params: parameters});
-    //     if (entry) {
-    //         throw new Error(`Parameter "${parameters}" already used to commit an identity.`);
-    //     };
-    // }
-    // catch (error) {
-    //     console.log("[Commit -- Parameter already used.] -- Error: ", error);
-    //     res.status(500).json({msg: "The parameter is already used to commit to the group once."});
-    //     return;
-    // };
-
     // Submit transaction and update database. Doesn't succeed if the parameter is already registered
     const {identityString: identityString} = req.query;
     const identity = new Identity(identityString as string);
@@ -252,17 +236,42 @@ app.get("/commit/", async (req, res) => {
 
 // endpoint to receive airdrop of CodeCoin
 app.get("/airdrop/", async (req, res) => {
+
+    let userAddr = '';
+
+    // get the contextAddress from the callbackId
     try {
-        const {identityString, externalNullifier, userAddr} = req.query;
+        const callbackId = req.query.id;
+        const db = client.db();
+        const callbackCollection = db.collection('codecoin-reclaim');
+        const entry = await callbackCollection.findOne({callbackId: callbackId});
+        if (!entry ) {
+            console.log(callbackId, " not found in the database");
+            throw new Error(`${callbackId} not found in the database.`);
+        }
+        console.log(entry.proofs);
+        if (entry.proofs == undefined || entry.proofs?.length == 0 ) {
+            console.log(callbackId, " proof not received");
+            throw new Error(`Proof from ${callbackId} not received from Reclaim Wallet.`);
+        }
+        const contextStr = entry.proofs[0].context;
+        const context = JSON.parse(contextStr);
+        userAddr = context.contextAddress;
+    }
+    catch (error) {
+        console.log("[Airdrop -- Incorrect CallbackId] -- Error: ", error);
+        res.status(500).json({msg: "Incorrect callbackId received/Unable to process"});
+    }
+
+    // Airdrop
+    try {
+        const {identityString, externalNullifier} = req.query;
         const identity = new Identity(identityString as string);
         const semaphoreEthers = new SemaphoreEthers("optimism-goerli", {address: semaphoreAddress});
         const members = await semaphoreEthers.getGroupMembers(groupNo.toString());
         const group = new Group(groupNo, merkleTreeDepth, members);
         const fullProof = await generateProof(identity, group, externalNullifier as string, signal, { zkeyFilePath: "./semaphore.zkey", wasmFilePath: "./semaphore.wasm" });
-        // const tx1 = await semaphoreContract.verifyProof(group.id, fullProof.merkleTreeRoot, fullProof.signal, fullProof.nullifierHash, fullProof.externalNullifier, fullProof.proof);
-        // console.log("-- tx verifyProof: ", tx1);
-        // const receipt1 = await tx1.wait();
-        // console.log("-- receipt verifyProof: ", receipt1);
+
         const tx2 = await codecoinContract.airDropTo(userAddr, fullProof.merkleTreeRoot, fullProof.signal, fullProof.nullifierHash, fullProof.externalNullifier, fullProof.proof);
         console.log("-- tx Airdrop: ", tx2);
         const receipt2 = await tx2.wait();
@@ -282,11 +291,6 @@ app.listen(port, async () => {
     try {
         await client.connect();
         console.log('Connected to mongoDB.');
-        // if (groupCreated.includes("false")) {
-        //     const tx = await semaphoreContract.createGroup(groupNo, merkleTreeDepth, publicAddress);
-        //     const receipt = await tx.wait();
-        //     console.log(receipt);
-        // }
     } catch (error) {
         console.error('Exiting. Failed to connect to mongoDB with error:', error, );
         process.exit(1);
